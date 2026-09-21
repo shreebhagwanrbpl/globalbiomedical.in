@@ -9,7 +9,7 @@ export default function Testimonials() {
       name: "Dr. Rajesh Kumar",
       role: "Healthcare Specialist",
       review:
-        "Central Biomedicals has consistently delivered reliable diagnostic equipment with outstanding support.",
+        "Global Biomedical has consistently delivered reliable diagnostic equipment with outstanding support.",
     },
     {
       name: "Amit Sharma",

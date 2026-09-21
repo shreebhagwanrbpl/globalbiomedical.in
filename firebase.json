@@ -1,6 +1,6 @@
 {
   "apphosting": {
-    "backendId": "centralbiomedicals",
+    "backendId": "globalbiomedicalin",
     "rootDir": "/",
     "ignore": [
       "node_modules",

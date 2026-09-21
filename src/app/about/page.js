@@ -2,14 +2,14 @@ import Image from "next/image";
 
 import PageBanner from "@/components/PageBanner";
 import SectionTitle from "@/components/SectionTitle";
-import DDS from "@/components/img/Dds.png";
+import aboutBiomedical from "@/components/img/about-biomedical.jpg";
 
 export default function AboutPage() {
   return (
     <>
       {/* Banner */}
       <PageBanner
-        title="About Central Biomedicals"
+        title="About Global Biomedical"
         subtitle="Delivering trusted diagnostic and biomedical technologies with innovation, quality, and healthcare precision."
       />
 
@@ -19,23 +19,24 @@ export default function AboutPage() {
 
           {/* Left Image */}
           <div className="relative">
-       <div className="rounded-[40px] overflow-hidden card-shadow bg-slate-100 h-[600px] flex items-center justify-center p-10">
-  <Image
-    src={DDS}
-    alt="About"
-    width={1200}
-    height={900}
-    className="max-w-full max-h-full object-contain"
-  />
-</div>
+            <div className="rounded-[40px] overflow-hidden card-shadow bg-slate-100 h-[500px] lg:h-[580px] p-3">
+              <Image
+                src={aboutBiomedical}
+                alt="Global Biomedical Diagnostic & Laboratory Solutions"
+                width={1200}
+                height={900}
+                priority
+                className="w-full h-full object-cover rounded-[32px]"
+              />
+            </div>
 
             {/* Floating Card */}
-            <div className="absolute bottom-8 left-8 bg-white p-6 rounded-[26px] shadow-2xl hidden lg:block">
+            <div className="absolute bottom-8 left-8 bg-white/95 backdrop-blur-md p-6 rounded-[26px] shadow-2xl border border-slate-100 hidden lg:block">
               <h3 className="text-3xl font-bold text-sky-700">
                 10+
               </h3>
 
-              <p className="text-slate-500">
+              <p className="text-slate-500 font-medium">
                 Years of Excellence
               </p>
             </div>
@@ -50,7 +51,7 @@ export default function AboutPage() {
             />
 
             <p className="mt-8 text-slate-600 leading-8">
-              At Central Biomedicals,
+              At Global Biomedical,
               we are committed to
               delivering premium-quality
               healthcare and biomedical

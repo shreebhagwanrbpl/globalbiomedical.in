@@ -6,6 +6,6 @@ export default function robots() {
         },
 
         sitemap:
-            "https://centralbiomedicals.com/sitemap.xml",
+            "https://globalbiomedical.in/sitemap.xml",
     };
 }

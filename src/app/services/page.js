@@ -33,7 +33,7 @@ export default function ServicesPage() {
           doc(
             db,
             "websites",
-            "centralbiomedicals",
+            "globalbiomedicalin",
             "pages",
             "services"
           )

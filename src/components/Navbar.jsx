@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
@@ -50,13 +51,15 @@ export default function Navbar() {
       <div className="container-custom h-20 flex items-center justify-between">
 
         {/* Logo */}
-        <Link href={makeLink("/")}>
-          <h1 className="text-xl md:text-2xl font-bold text-sky-700">
-            Central
-            <span className="text-slate-900">
-              {" "}Biomedicals
-            </span>
-          </h1>
+        <Link href={makeLink("/")} className="flex items-center gap-2">
+          <Image
+            src="/globallogo.png"
+            alt="Global Biomedical"
+            width={200}
+            height={55}
+            className="h-12 md:h-14 w-auto object-contain py-1"
+            priority
+          />
         </Link>
 
         {/* Desktop Menu */}

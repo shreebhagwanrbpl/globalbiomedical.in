@@ -7,7 +7,7 @@ import Image from "next/image";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-import CBG from "../components/img/CBG.png";
+import heroBiomedical from "@/components/img/hero-biomedical.jpg";
 
 import {
   ArrowRight,
@@ -16,25 +16,39 @@ import {
   BadgeCheck,
 } from "lucide-react";
 
+const DEFAULT_HERO = {
+  title: "Biomedical & Laboratory Equipment Solutions",
+  description:
+    "Global Biomedical supplies advanced CBC Machines, Hematology Analyzers, Biochemistry Analyzers, ELISA Readers and precision laboratory equipment across India.",
+  button1Text: "Explore Products",
+  button1Link: "/items",
+  button2Text: "Contact Us",
+  button2Link: "/contact",
+};
+
 export default function HeroSection({ city }) {
   const [loading, setLoading] = useState(true);
-
-  const [heroData, setHeroData] = useState({
-    title: "",
-    description: "",
-    button1Text: "",
-    button2Text: "",
-  });
+  const [heroData, setHeroData] = useState(DEFAULT_HERO);
 
   useEffect(() => {
     const fetchHeroData = async () => {
       try {
         const snap = await getDoc(
-          doc(db, "websites", "centralbiomedicals", "pages", "home")
+          doc(db, "websites", "globalbiomedicalin", "pages", "home")
         );
 
         if (snap.exists()) {
-          setHeroData(snap.data());
+          const data = snap.data();
+          setHeroData({
+            title: data.title || DEFAULT_HERO.title,
+            description: data.description || DEFAULT_HERO.description,
+            button1Text: data.button1Text || DEFAULT_HERO.button1Text,
+            button1Link: data.button1Link || DEFAULT_HERO.button1Link,
+            button2Text: data.button2Text || DEFAULT_HERO.button2Text,
+            button2Link: data.button2Link || DEFAULT_HERO.button2Link,
+            imageUrl: data.imageUrl || data.image || "",
+            media: data.media || [],
+          });
         }
       } catch (error) {
         console.error("Error fetching hero data:", error);
@@ -51,9 +65,17 @@ export default function HeroSection({ city }) {
     ? city.toLowerCase().replace(/\s+/g, "-")
     : "";
 
-  const makeLink = (path) => {
-    return districtSlug ? `/${districtSlug}${path}` : path;
+  const makeLink = (path = "") => {
+    const target = path.startsWith("/") ? path : `/${path}`;
+    return districtSlug ? `/${districtSlug}${target}` : target;
   };
+
+  const titleText = heroData.title || DEFAULT_HERO.title;
+  const descText = heroData.description || DEFAULT_HERO.description;
+  const btn1Label = heroData.button1Text || DEFAULT_HERO.button1Text;
+  const btn1Target = heroData.button1Link || DEFAULT_HERO.button1Link;
+  const btn2Label = heroData.button2Text || DEFAULT_HERO.button2Text;
+  const btn2Target = heroData.button2Link || DEFAULT_HERO.button2Link;
 
   return (
     <section className="gradient-bg overflow-hidden">
@@ -82,7 +104,7 @@ export default function HeroSection({ city }) {
               </div>
             ) : (
               <>
-                {heroData.title}
+                {titleText}
 
                 {city && (
                   <>
@@ -105,7 +127,7 @@ export default function HeroSection({ city }) {
             </div>
           ) : (
             <p className="mt-7 text-slate-600 text-lg leading-8 max-w-xl">
-              {heroData.description}
+              {descText}
               {city && (
                 <>
                   {" "}across <strong>{city}</strong>
@@ -123,16 +145,16 @@ export default function HeroSection({ city }) {
               </>
             ) : (
               <>
-                <Link href={makeLink("/services")}>
+                <Link href={makeLink(btn1Target)}>
                   <button className="primary-btn flex items-center gap-2">
-                    {heroData.button1Text || "Explore Services"}
+                    {btn1Label}
                     <ArrowRight size={18} />
                   </button>
                 </Link>
 
-                <Link href={makeLink("/contact")}>
+                <Link href={makeLink(btn2Target)}>
                   <button className="secondary-btn">
-                    {heroData.button2Text || "Contact Us"}
+                    {btn2Label}
                   </button>
                 </Link>
               </>
@@ -180,13 +202,14 @@ export default function HeroSection({ city }) {
           className="relative"
         >
 
-          <div className="glass-card rounded-[40px] p-6 card-shadow">
+          <div className="glass-card rounded-[40px] p-4 sm:p-5 card-shadow">
             <Image
-              src={CBG}
-              alt="Central Biomedical"
+              src={heroBiomedical}
+              alt="Global Biomedical Laboratory & Diagnostic Equipment"
               width={1200}
               height={900}
-              className="rounded-[28px] object-cover object-[20%_center] h-[350px] sm:h-[450px] lg:h-[550px] w-full"
+              priority
+              className="rounded-[28px] object-cover object-center h-[350px] sm:h-[450px] lg:h-[550px] w-full"
             />
           </div>
 

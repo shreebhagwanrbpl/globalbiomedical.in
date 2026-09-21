@@ -12,7 +12,7 @@ export default function SeoContent({ city = "" }) {
                 <div className="space-y-6 text-slate-600 leading-8 text-lg">
 
                     <p>
-                        Central Biomedicals is a trusted supplier of biomedical
+                        Global Biomedical is a trusted supplier of biomedical
                         and laboratory equipment in {location}. We provide
                         CBC Machines, Hematology Analyzers, Biochemistry
                         Analyzers, Urine Analyzers, ELISA Readers and
@@ -37,7 +37,7 @@ export default function SeoContent({ city = "" }) {
                     </p>
 
                     <p>
-                        Central Biomedicals supplies equipment across multiple
+                        Global Biomedical supplies equipment across multiple
                         districts and cities, helping healthcare providers
                         improve testing efficiency and diagnostic accuracy.
                     </p>

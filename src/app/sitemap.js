@@ -1,14 +1,10 @@
 import { db } from "@/lib/firebase";
-import {
-    collection,
-    getDocs,
-    doc,
-    getDoc,
-} from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
+import { fetchFullCatalog } from "@/lib/data-fetcher";
 
 export default async function sitemap() {
     const baseUrl =
-        "https://centralbiomedicals.com";
+        "https://globalbiomedical.in";
 
     const urls = [];
 
@@ -43,7 +39,7 @@ export default async function sitemap() {
                 collection(
                     db,
                     "websites",
-                    "centralbiomedicals",
+                    "globalbiomedicalin",
                     "districts"
                 )
             );
@@ -88,52 +84,32 @@ export default async function sitemap() {
             );
         });
 
-        // PRODUCTS
-        const productDoc =
-            await getDoc(
-                doc(
-                    db,
-                    "websites",
-                    "centralbiomedicals",
-                    "pages",
-                    "products"
-                )
-            );
+        // MASTER CATALOG PRODUCTS
+        const products = await fetchFullCatalog({ forceRefresh: true });
 
-        const products =
-            productDoc.data()
-                ?.products || [];
+        products.forEach((product) => {
+            const prodSlug = product.slug || product.id;
+            if (!prodSlug) return;
 
-        products.forEach(
-            (product) => {
-                if (!product.slug) return;
+            // Main Product URL
+            urls.push({
+                url: `${baseUrl}/items/${prodSlug}`,
+                lastModified: new Date(),
+            });
 
-                // Main Product URL
+            // District Product URLs
+            districts.forEach((district) => {
+                const distSlug = district.slug;
+                if (!distSlug) return;
+
                 urls.push({
-                    url: `${baseUrl}/items/${product.slug}`,
-                    lastModified:
-                        new Date(),
+                    url: `${baseUrl}/${distSlug}/items/${prodSlug}`,
+                    lastModified: new Date(),
                 });
-
-                // District Product URLs
-                districts.forEach(
-                    (district) => {
-                        if (!district.slug) return;
-
-                        urls.push({
-                            url: `${baseUrl}/${district.slug}/items/${product.slug}`,
-                            lastModified:
-                                new Date(),
-                        });
-                    }
-                );
-            }
-        );
+            });
+        });
     } catch (error) {
-        console.error(
-            "Sitemap Error:",
-            error
-        );
+        console.error("Sitemap Error:", error);
     }
 
     return urls;

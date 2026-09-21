@@ -15,20 +15,11 @@ import {
     FaLink,
 } from "react-icons/fa";
 
-import {
-    doc,
-    getDoc,
-    getDocs,
-    addDoc,
-    collection,
-} from "firebase/firestore";
+import { addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-const makeSlug = (text = "") =>
-    text
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-");
+import { fetchProductBySlug, fetchFullCatalog } from "@/lib/data-fetcher";
+import { makeSlug } from "@/lib/constants";
+
 export default function ProductDetails({ slug }) {
     const [product, setProduct] = useState(null);
     const [imageLoaded, setImageLoaded] = useState(false);
@@ -43,8 +34,7 @@ export default function ProductDetails({ slug }) {
         phone: "",
     });
 
-    const [submitting, setSubmitting] =
-        useState(false);
+    const [submitting, setSubmitting] = useState(false);
     const pathname = usePathname();
 
     const pathParts = pathname
@@ -61,104 +51,45 @@ export default function ProductDetails({ slug }) {
         city.slice(1);
 
     useEffect(() => {
+        let isMounted = true;
         const loadProduct = async () => {
             try {
+                let found = await fetchProductBySlug(slug, { forceRefresh: true });
 
-                // NORMAL PRODUCTS
-                const snap = await getDoc(
-                    doc(
-                        db,
-                        "websites",
-                        "centralbiomedicals",
-                        "pages",
-                        "products"
-                    )
-                );
-
-                let allProducts = [];
-
-                if (snap.exists()) {
-                    allProducts = (snap.data().products || []).map((item) => ({
-                        ...item,
-                        slug:
-                            item.slug ||
-                            item.productSlug ||
-                            makeSlug(item.title),
-                    }));
+                if (!found) {
+                    const allProducts = await fetchFullCatalog({ forceRefresh: true });
+                    const normSlug = makeSlug(slug);
+                    found = allProducts.find(
+                        (p) =>
+                            p.slug === slug ||
+                            makeSlug(p.slug) === normSlug ||
+                            makeSlug(p.title) === normSlug ||
+                            p.id === slug ||
+                            p.categoryProductId === slug
+                    );
                 }
 
-                // CATEGORY PRODUCTS
-                const categorySnap = await getDocs(
-                    collection(
-                        db,
-                        "websites",
-                        "centralbiomedicals",
-                        "pages",
-                        "categoryproducts",
-                        "categories"
-                    )
-                );
-
-                categorySnap.forEach((docSnap) => {
-                    const data = docSnap.data();
-
-                    if (data.products?.length) {
-                        allProducts.push(
-                            ...(data.products || []).map((item) => ({
-                                ...item,
-                                slug:
-                                    item.slug ||
-                                    item.productSlug ||
-                                    makeSlug(item.title),
-                            }))
-                        );
-                    }
-                });
-
-                const found = allProducts.find(
-                    (p) => p.slug === slug
-                );
-                console.log("URL SLUG:", slug);
-
-                allProducts.forEach((p) => {
-                    console.log("PRODUCT:", p.title);
-                    console.log("PRODUCT SLUG:", p.slug);
-                });
-                console.log("SLUG FROM URL:", slug);
-                console.log(
-                    "TOTAL PRODUCTS:",
-                    allProducts.length
-                );
-                console.log(
-                    "FOUND PRODUCT:",
-                    found
-                );
+                if (!isMounted) return;
 
                 setProduct(found || null);
 
                 if (found) {
-
-                    if (
-                        found.images?.length > 0
-                    ) {
-                        setSelectedImage(
-                            found.images[0]
-                        );
+                    if (Array.isArray(found.images) && found.images.length > 0) {
+                        setSelectedImage(found.images[0]);
                     } else {
-                        setSelectedImage(
-                            found.image || ""
-                        );
+                        setSelectedImage(found.image || "");
                     }
-
                     setSelectedMedia("image");
                 }
-
             } catch (error) {
-                console.error(error);
+                console.error("[ProductDetails] Error loading product:", error);
             }
         };
 
         loadProduct();
+        return () => {
+            isMounted = false;
+        };
     }, [slug]);
 
     const handleSubmit = async (e) => {
@@ -193,7 +124,7 @@ export default function ProductDetails({ slug }) {
                 collection(
                     db,
                     "websitesQueries",
-                    "centralbiomedicals",
+                    "globalbiomedicalin",
                     "productQueries"
                 ),
                 {
@@ -236,7 +167,7 @@ export default function ProductDetails({ slug }) {
                 product.title,
             brand: {
                 "@type": "Brand",
-                name: product.brand || "Central Biomedicals",
+                name: product.brand || "Global Biomedical",
             },
         }
         : null;
@@ -777,11 +708,11 @@ ${product?.desc}
                             <div className="mt-12">
 
                                 <h3 className="text-2xl font-bold mb-4 text-slate-900">
-                                    Why Choose Central Biomedicals in {cityName}?
+                                    Why Choose Global Biomedical in {cityName}?
                                 </h3>
 
                                 <p className="text-slate-600 leading-8">
-                                    Central Biomedicals is a trusted supplier and
+                                    Global Biomedical is a trusted supplier and
                                     distributor of {product.title} in {cityName}.
                                     We provide high-quality biomedical and laboratory
                                     equipment for hospitals, pathology laboratories,
@@ -824,7 +755,7 @@ ${product?.desc}
                                     </h3>
 
                                     <p className="text-slate-600 leading-8">
-                                        Central Biomedicals supplies {product.title}
+                                        Global Biomedical supplies {product.title}
                                         in {cityName} with technical support,
                                         installation assistance and customer service
                                         for hospitals and laboratories.
@@ -838,7 +769,7 @@ ${product?.desc}
                                     </h3>
 
                                     <p className="text-slate-600 leading-8">
-                                        Central Biomedicals is a trusted dealer of
+                                        Global Biomedical is a trusted dealer of
                                         {product.title} in {cityName}. We supply
                                         biomedical equipment, laboratory instruments,
                                         diagnostic analyzers and healthcare devices
@@ -871,7 +802,7 @@ ${product?.desc}
                                     <p className="text-slate-600 leading-8">
                                         Buy high quality {product.title} in
                                         {cityName} at competitive prices.
-                                        Contact Central Biomedicals for the
+                                        Contact Global Biomedical for the
                                         latest quotation and product availability.
                                     </p>
 
@@ -993,7 +924,7 @@ ${product?.desc}
 
                                     <div>
                                         <h4 className="font-semibold text-lg">
-                                            How can I contact Central Biomedials?
+                                            How can I contact Global Biomedical?
                                         </h4>
 
                                         <p className="text-slate-600 mt-2">

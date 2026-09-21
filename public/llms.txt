@@ -1,0 +1,16 @@
+# Global Biomedical - Medical Laboratory & Diagnostic Equipment Supplier
+> Global Biomedical is a premier supplier, dealer, and distributor of high-precision diagnostic and biomedical equipment across India.
+
+## Core Information
+- Website: https://globalbiomedical.in
+- Primary Catalog: https://globalbiomedical.in/items
+- Live API: https://globalbiomedical.in/api/catalog
+- LLMs Index: https://globalbiomedical.in/llms.txt
+- Coverage: All districts and healthcare institutions across India
+
+## Main Website Sections
+- Home: https://globalbiomedical.in/
+- About Us: https://globalbiomedical.in/about
+- Services: https://globalbiomedical.in/services
+- Products Catalog: https://globalbiomedical.in/items
+- Contact: https://globalbiomedical.in/contact

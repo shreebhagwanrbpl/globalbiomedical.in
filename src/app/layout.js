@@ -5,14 +5,14 @@ import { Toaster } from "react-hot-toast";
 
 export const metadata = {
   metadataBase: new URL(
-    "https://centralbiomedicals.com"
+    "https://globalbiomedical.in"
   ),
 
   title:
-    "Biomedical Equipment Supplier in India | Central Biomedicals",
+    "Biomedical Equipment Supplier in India | Global Biomedical",
 
   description:
-    "Central Biomedicals supplies CBC Machines, Hematology Analyzers, Biochemistry Analyzers, ELISA Readers and laboratory equipment across India.",
+    "Global Biomedical supplies CBC Machines, Hematology Analyzers, Biochemistry Analyzers, ELISA Readers and laboratory equipment across India.",
 
   keywords: [
     "Biomedical Equipment Supplier",
@@ -26,21 +26,21 @@ export const metadata = {
 
   openGraph: {
     title:
-      "Biomedical Equipment Supplier in India | Central Biomedicals",
+      "Biomedical Equipment Supplier in India | Global Biomedical",
 
     description:
       "Supplier of biomedical and laboratory equipment across India.",
 
-    url: "https://centralbiomedicals.com",
+    url: "https://globalbiomedical.in",
 
-    siteName: "Central Biomedicals",
+    siteName: "Global Biomedical",
 
     images: [
       {
-        url: "/logo.png",
+        url: "/globallogo.png",
         width: 1200,
         height: 630,
-        alt: "Central Biomedicals",
+        alt: "Global Biomedical",
       },
     ],
 
@@ -52,16 +52,27 @@ export const metadata = {
     card: "summary_large_image",
 
     title:
-      "Biomedical Equipment Supplier in India | Central Biomedicals",
+      "Biomedical Equipment Supplier in India | Global Biomedical",
 
     description:
       "Supplier of biomedical and laboratory equipment across India.",
 
-    images: ["/logo.png"],
+    images: ["/globallogo.png"],
+  },
+
+  icons: {
+    icon: [
+      { url: "/globallogo.png", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
+    apple: [
+      { url: "/globallogo.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: ["/globallogo.png"],
   },
 
   alternates: {
-    canonical: "https://centralbiomedicals.com",
+    canonical: "https://globalbiomedical.in",
   },
 };
 

@@ -11,12 +11,13 @@ import {
   MapPin,
 } from "lucide-react";
 
+import { extractContactDetails, fetchDocCached } from "@/lib/data-fetcher";
+import { CURRENT_WEBSITE_ID } from "@/lib/constants";
+
 export default function Footer() {
-  const [contactInfo, setContactInfo] =
-    useState([]);
+  const [contactData, setContactData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [districtData, setDistrictData] =
-    useState(null);
+  const [districtData, setDistrictData] = useState(null);
 
   const pathname = usePathname();
 
@@ -41,25 +42,13 @@ export default function Footer() {
   useEffect(() => {
     const loadContact = async () => {
       try {
-        const snap = await getDoc(
-          doc(
-            db,
-            "websites",
-            "centralbiomedicals",
-            "pages",
-            "contact"
-          )
-        );
-
-        if (snap.exists()) {
-          setContactInfo(
-            snap.data().contactInfo || []
-          );
+        const data = await fetchDocCached(`websites/${CURRENT_WEBSITE_ID}/pages/contact`);
+        if (data) {
+          setContactData(data);
         }
-
-        setLoading(false);
       } catch (err) {
         console.log(err);
+      } finally {
         setLoading(false);
       }
     };
@@ -76,7 +65,7 @@ export default function Footer() {
           doc(
             db,
             "websites",
-            "centralbiomedicals",
+            CURRENT_WEBSITE_ID,
             "districts",
             district
           )
@@ -93,20 +82,11 @@ export default function Footer() {
     loadDistrict();
   }, [district]);
 
-  const phone =
-    contactInfo.find(
-      (x) => x.label === "Phone Number"
-    )?.value || "";
-
-  const email =
-    contactInfo.find(
-      (x) => x.label === "Email Address"
-    )?.value || "";
-
-  const address =
-    contactInfo.find(
-      (x) => x.label === "Office Address"
-    )?.value || "";
+  const contact = extractContactDetails(contactData);
+  const phone = contact.phone || "+91 9874563210";
+  const email = contact.email || "globalbiomedical@gmail.com";
+  const defaultAddress = "Unit S-1, 2nd Floor, Pn 16, D Block, Tagore Nagar, Vaishali Nagar, Jaipur - 302021, Rajasthan, India";
+  const address = contact.address || defaultAddress;
 
   const dynamicAddress =
     districtData
@@ -160,9 +140,9 @@ export default function Footer() {
 
           <div>
             <h2 className="text-2xl font-bold text-sky-700">
-              Central
+              Global
               <span className="text-slate-900">
-                {" "}Biomedicals
+                {" "}Biomedical
               </span>
             </h2>
 
@@ -253,7 +233,7 @@ export default function Footer() {
         <div className="border-t border-slate-200 mt-12 pt-6 flex flex-col md:flex-row justify-between items-center text-sm text-slate-500">
 
           <p>
-            © 2026 Central Biomedicals.
+            © 2026 Global Biomedical.
             All rights reserved.
           </p>
 

@@ -19,15 +19,15 @@ import {
 import PageBanner from "@/components/PageBanner";
 import CTASection from "@/components/CTASection";
 
+import { extractContactDetails, fetchDocCached } from "@/lib/data-fetcher";
+import { CURRENT_WEBSITE_ID } from "@/lib/constants";
+
 export default function ContactPage() {
   const [loading, setLoading] = useState(true);
-  const [districtData, setDistrictData] =
-    useState(null);
-  const [contactInfo, setContactInfo] =
-    useState([]);
+  const [districtData, setDistrictData] = useState(null);
+  const [contactData, setContactData] = useState(null);
 
-  const [submitting, setSubmitting] =
-    useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const pathname = usePathname();
 
   const pathParts = pathname
@@ -35,15 +35,18 @@ export default function ContactPage() {
     .filter(Boolean);
 
   const currentDistrict =
-    pathParts.length > 0
+    pathParts.length > 0 &&
+    !["about", "services", "items", "contact"].includes(pathParts[0])
       ? pathParts[0]
       : null;
+
   const handleChange = (e) => {
     setForm({
       ...form,
       [e.target.name]: e.target.value,
     });
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -84,7 +87,7 @@ export default function ContactPage() {
         collection(
           db,
           "websitesQueries",
-          "centralbiomedicals",
+          CURRENT_WEBSITE_ID,
           "contactQueries"
         ),
         {
@@ -113,6 +116,7 @@ export default function ContactPage() {
       setSubmitting(false);
     }
   };
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -120,6 +124,7 @@ export default function ContactPage() {
     subject: "",
     message: "",
   });
+
   useEffect(() => {
     const loadDistrict = async () => {
       if (!currentDistrict) return;
@@ -129,7 +134,7 @@ export default function ContactPage() {
           doc(
             db,
             "websites",
-            "centralbiomedicals",
+            CURRENT_WEBSITE_ID,
             "districts",
             currentDistrict
           )
@@ -145,23 +150,13 @@ export default function ContactPage() {
 
     loadDistrict();
   }, [currentDistrict]);
+
   useEffect(() => {
     const loadContact = async () => {
       try {
-        const snap = await getDoc(
-          doc(
-            db,
-            "websites",
-            "centralbiomedicals",
-            "pages",
-            "contact"
-          )
-        );
-
-        if (snap.exists()) {
-          setContactInfo(
-            snap.data().contactInfo || []
-          );
+        const data = await fetchDocCached(`websites/${CURRENT_WEBSITE_ID}/pages/contact`);
+        if (data) {
+          setContactData(data);
         }
       } catch (err) {
         console.log(err);
@@ -173,27 +168,12 @@ export default function ContactPage() {
     loadContact();
   }, []);
 
-
-
-  const phone =
-    contactInfo.find(
-      (x) => x.label === "Phone Number"
-    )?.value || "";
-
-  const email =
-    contactInfo.find(
-      (x) => x.label === "Email Address"
-    )?.value || "";
-
-  const address =
-    contactInfo.find(
-      (x) => x.label === "Office Address"
-    )?.value || "";
-
-  const hours =
-    contactInfo.find(
-      (x) => x.label === "Working Hours"
-    )?.value || "";
+  const contact = extractContactDetails(contactData);
+  const phone = contact.phone || "+91 9874563210";
+  const email = contact.email || "globalbiomedical@gmail.com";
+  const defaultAddress = "Unit S-1, 2nd Floor, Pn 16, D Block, Tagore Nagar, Vaishali Nagar, Jaipur - 302021, Rajasthan, India";
+  const address = contact.address || defaultAddress;
+  const hours = contact.hours || "Mon - Sat: 9:00 AM - 7:00 PM";
 
   const dynamicAddress =
     districtData
@@ -241,7 +221,7 @@ export default function ContactPage() {
       {/* Banner */}
       <PageBanner
         title="Contact Us"
-        subtitle="Get in touch with Central Biomedicals for premium diagnostic and biomedical solutions."
+        subtitle="Get in touch with Global Biomedical for premium diagnostic and biomedical solutions."
       />
 
       {/* Contact Section */}
