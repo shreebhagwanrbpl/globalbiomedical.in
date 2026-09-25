@@ -1,22 +1,38 @@
-import { db } from "./firebase";
-import { doc, getDoc, getDocs, collection } from "firebase/firestore";
 import {
-  COMPANIES,
   CURRENT_COMPANY_ID,
   CURRENT_WEBSITE_ID,
-  isVisibleForWebsite,
   makeSlug,
   normalizeWebsiteId,
 } from "./constants";
 
-// In-memory cache for Firestore documents and catalog
 const docCache = {};
 let catalogCache = null;
 let catalogCacheTimestamp = 0;
 let catalogInFlightPromise = null;
-
-// Short cache window for single-request deduplication (3 seconds max)
 const CLIENT_CACHE_TTL = 3000;
+
+function getPathParts(path) {
+  return String(path || "").split("/").filter(Boolean);
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    cache: "no-store",
+    ...options,
+    headers: {
+      Accept: "application/json",
+      ...(options.headers || {}),
+    },
+  });
+
+  const result = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(result?.error || `Request failed with status ${response.status}`);
+  }
+
+  return result;
+}
 
 export function invalidateCatalogCache() {
   catalogCache = null;
@@ -25,46 +41,65 @@ export function invalidateCatalogCache() {
 }
 
 /**
- * Fetch a single document and cache its data.
+ * Read website-managed documents through this website's API proxy.
+ * The proxy talks to SuperAdmin/SQLite. No Firebase is used here.
  */
 export async function fetchDocCached(path, force = false) {
   if (!force && docCache[path]) {
     return docCache[path];
   }
+
   if (!force && docCache[path + "_promise"]) {
     return docCache[path + "_promise"];
   }
 
   docCache[path + "_promise"] = (async () => {
     try {
-      const parts = path.split("/");
-      const docRef = doc(db, ...parts);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const data = snap.data();
-        docCache[path] = data;
-        return data;
+      const parts = getPathParts(path);
+      const websiteIndex = parts.indexOf("websites");
+      const websiteId =
+        websiteIndex >= 0 ? parts[websiteIndex + 1] : CURRENT_WEBSITE_ID;
+
+      const pagesIndex = parts.indexOf("pages");
+      const districtsIndex = parts.indexOf("districts");
+
+      let type = "";
+      let query = "";
+
+      if (pagesIndex >= 0) {
+        type = parts[pagesIndex + 1] || "";
+      } else if (districtsIndex >= 0) {
+        type = "district";
+        query = `&slug=${encodeURIComponent(parts[districtsIndex + 1] || "")}`;
       }
-      return null;
-    } catch (err) {
-      console.error(`Error fetching doc at ${path}:`, err);
+
+      if (!type) return null;
+
+      const result = await fetchJson(
+        `/api/site-data?type=${encodeURIComponent(type)}&websiteId=${encodeURIComponent(
+          websiteId
+        )}&companyId=${encodeURIComponent(CURRENT_COMPANY_ID)}${query}`
+      );
+
+      const data = result?.data ?? null;
+
+      if (data !== null && data !== undefined) {
+        docCache[path] = data;
+      }
+
+      return data;
+    } catch (error) {
+      console.error(`[data-fetcher] Error fetching ${path}:`, error);
       delete docCache[path + "_promise"];
       return null;
+    } finally {
+      delete docCache[path + "_promise"];
     }
   })();
 
   return docCache[path + "_promise"];
 }
 
-/**
- * Fetch the full catalog from Master Catalog:
- * companies/{companyId}/categories/{categoryId}/subcategories/{subcategoryId}
- * 
- * Applies bulletproof visibility and instant unassign/hide logic:
- * - Category hidden -> subcategories & products hidden
- * - Subcategory hidden -> products hidden
- * - Product hidden / empty websiteIds -> product hidden
- */
 export async function fetchFullCatalog({
   forceRefresh = false,
   websiteId = CURRENT_WEBSITE_ID,
@@ -85,196 +120,25 @@ export async function fetchFullCatalog({
   }
 
   catalogInFlightPromise = (async () => {
-    const startTime = performance.now();
-    const targetWebsite = normalizeWebsiteId(websiteId);
-
     try {
-      const allProducts = [];
-      const seenIds = new Set();
-
-      // Order companies: primary detected company first, followed by others
-      const targetCompanies = [
-        companyId,
-        ...COMPANIES.filter((c) => c !== companyId),
-      ];
-
-      await Promise.all(
-        targetCompanies.map(async (comp) => {
-          try {
-            const catCol = collection(db, "companies", comp, "categories");
-            const catSnap = await getDocs(catCol);
-
-            await Promise.all(
-              catSnap.docs.map(async (categoryDoc) => {
-                const catData = categoryDoc.data() || {};
-                const catName = catData.name || catData.category || categoryDoc.id;
-
-                // 1. Category Visibility Check (If hidden, skip all nested contents)
-                if (!isVisibleForWebsite(catData, targetWebsite)) {
-                  return;
-                }
-
-                try {
-                  const subCol = collection(
-                    db,
-                    "companies",
-                    comp,
-                    "categories",
-                    categoryDoc.id,
-                    "subcategories"
-                  );
-                  const subSnap = await getDocs(subCol);
-
-                  for (const subDoc of subSnap.docs) {
-                    const subData = subDoc.data() || {};
-                    const subName = subData.name || subData.subCategory || subDoc.id;
-
-                    // 2. Subcategory Visibility Check (If hidden, skip products)
-                    if (!isVisibleForWebsite(subData, targetWebsite)) {
-                      continue;
-                    }
-
-                    const rawProducts = Array.isArray(subData.products)
-                      ? subData.products
-                      : [];
-
-                    for (let idx = 0; idx < rawProducts.length; idx++) {
-                      const prod = rawProducts[idx];
-                      if (!prod) continue;
-
-                      // 3. Product Visibility Check
-                      if (!isVisibleForWebsite(prod, targetWebsite)) {
-                        continue;
-                      }
-
-                      const prodId =
-                        prod.id ||
-                        prod.categoryProductId ||
-                        `${comp}-${categoryDoc.id}-${subDoc.id}-${idx}`;
-
-                      if (seenIds.has(prodId)) continue;
-                      seenIds.add(prodId);
-
-                      const title = prod.title || prod.name || "Untitled Product";
-                      const slug = prod.slug || makeSlug(title);
-                      const images = Array.isArray(prod.images)
-                        ? prod.images.filter(Boolean)
-                        : prod.image
-                        ? [prod.image]
-                        : [];
-
-                      allProducts.push({
-                        ...prod,
-                        uid: `${categoryDoc.id}-${subDoc.id}-${idx}`,
-                        id: prodId,
-                        categoryProductId: prod.categoryProductId || prod.id || "",
-                        title,
-                        name: title,
-                        slug,
-                        price: prod.price || "",
-                        desc: prod.desc || prod.description || "",
-                        description: prod.description || prod.desc || "",
-                        brand: prod.brand || "",
-                        model: prod.model || "",
-                        capacity: prod.capacity || "",
-                        throughput: prod.throughput || "",
-                        instrument: prod.instrument || "",
-                        usage: prod.usage || "",
-                        parameters: prod.parameters || "",
-                        automation: prod.automation || "",
-                        availability: prod.availability || "",
-                        size: prod.size || "",
-                        category: catName,
-                        categoryId: categoryDoc.id,
-                        subCategory: subName,
-                        subcategoryId: subDoc.id,
-                        companyId: comp,
-                        images,
-                        image: images[0] || "",
-                        video: prod.video || "",
-                        pdf: prod.pdf || "",
-                        isPublished: prod.isPublished !== false,
-                        websiteIds: prod.websiteIds || [],
-                      });
-                    }
-                  }
-
-                  // Direct category products (if any)
-                  if (Array.isArray(catData.products)) {
-                    for (let idx = 0; idx < catData.products.length; idx++) {
-                      const prod = catData.products[idx];
-                      if (!prod) continue;
-                      if (!isVisibleForWebsite(prod, targetWebsite)) continue;
-
-                      const prodId =
-                        prod.id ||
-                        prod.categoryProductId ||
-                        `${comp}-${categoryDoc.id}-direct-${idx}`;
-
-                      if (seenIds.has(prodId)) continue;
-                      seenIds.add(prodId);
-
-                      const title = prod.title || prod.name || "Untitled Product";
-                      const slug = prod.slug || makeSlug(title);
-                      const images = Array.isArray(prod.images)
-                        ? prod.images.filter(Boolean)
-                        : prod.image
-                        ? [prod.image]
-                        : [];
-
-                      allProducts.push({
-                        ...prod,
-                        uid: `${categoryDoc.id}-direct-${idx}`,
-                        id: prodId,
-                        categoryProductId: prod.categoryProductId || prod.id || "",
-                        title,
-                        name: title,
-                        slug,
-                        price: prod.price || "",
-                        desc: prod.desc || prod.description || "",
-                        description: prod.description || prod.desc || "",
-                        brand: prod.brand || "",
-                        model: prod.model || "",
-                        category: catName,
-                        categoryId: categoryDoc.id,
-                        subCategory: prod.subCategory || catName,
-                        subcategoryId: prod.subcategoryId || categoryDoc.id,
-                        companyId: comp,
-                        images,
-                        image: images[0] || "",
-                        video: prod.video || "",
-                        pdf: prod.pdf || "",
-                        isPublished: prod.isPublished !== false,
-                        websiteIds: prod.websiteIds || [],
-                      });
-                    }
-                  }
-                } catch (subErr) {
-                  console.error(
-                    `Error fetching subcategories for category ${categoryDoc.id} in ${comp}:`,
-                    subErr
-                  );
-                }
-              })
-            );
-          } catch (compErr) {
-            console.error(`Error fetching categories for company ${comp}:`, compErr);
-          }
-        })
+      const result = await fetchJson(
+        `/api/catalog?websiteId=${encodeURIComponent(
+          normalizeWebsiteId(websiteId)
+        )}&companyId=${encodeURIComponent(companyId)}`
       );
 
-      const duration = performance.now() - startTime;
-      console.log(
-        `[data-fetcher] Master Catalog fetch completed: ${allProducts.length} items visible for "${targetWebsite}" in ${duration.toFixed(
-          2
-        )}ms`
-      );
+      const products = Array.isArray(result?.products) ? result.products : [];
 
-      catalogCache = allProducts;
+      catalogCache = products;
       catalogCacheTimestamp = Date.now();
-      return allProducts;
-    } catch (err) {
-      console.error("[data-fetcher] Error fetching master catalog:", err);
+
+      console.log(
+        `[data-fetcher] Admin SQLite catalog loaded: ${products.length} products for "${websiteId}"`
+      );
+
+      return products;
+    } catch (error) {
+      console.error("[data-fetcher] Error fetching Admin SQLite catalog:", error);
       return [];
     } finally {
       catalogInFlightPromise = null;
@@ -284,9 +148,6 @@ export async function fetchFullCatalog({
   return catalogInFlightPromise;
 }
 
-/**
- * Fetch a single product by its URL slug from the Master Catalog.
- */
 export async function fetchProductBySlug(
   slug,
   {
@@ -307,19 +168,16 @@ export async function fetchProductBySlug(
 
   return (
     catalog.find(
-      (p) =>
-        p.slug === slug ||
-        makeSlug(p.slug) === normalizedSlug ||
-        makeSlug(p.title) === normalizedSlug ||
-        p.id === slug ||
-        p.categoryProductId === slug
+      (product) =>
+        product?.slug === slug ||
+        makeSlug(product?.slug) === normalizedSlug ||
+        makeSlug(product?.title) === normalizedSlug ||
+        product?.id === slug ||
+        product?.categoryProductId === slug
     ) || null
   );
 }
 
-/**
- * Helpers for cached document retrieval across pages
- */
 export async function fetchHomeData() {
   return fetchDocCached(`websites/${CURRENT_WEBSITE_ID}/pages/home`);
 }
@@ -337,10 +195,6 @@ export async function fetchDistrictData(district) {
   return fetchDocCached(`websites/${CURRENT_WEBSITE_ID}/districts/${district}`);
 }
 
-/**
- * Universal contact details extractor that handles any label variant
- * (Phone, Contact, Mobile, Email, Address, Office Address, etc.)
- */
 export function extractContactDetails(data) {
   const result = {
     phone: "",
@@ -366,18 +220,16 @@ export function extractContactDetails(data) {
 
   for (const item of list) {
     if (!item || !item.label) continue;
+
     const labelLower = String(item.label)
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "");
 
-    let values = [];
-    if (Array.isArray(item.value)) {
-      values = item.value
-        .map((v) => String(v || "").trim())
-        .filter(Boolean);
-    } else if (typeof item.value === "string" && item.value.trim()) {
-      values = [item.value.trim()];
-    }
+    const values = Array.isArray(item.value)
+      ? item.value.map((value) => String(value || "").trim()).filter(Boolean)
+      : typeof item.value === "string" && item.value.trim()
+        ? [item.value.trim()]
+        : [];
 
     if (values.length === 0) continue;
 
@@ -409,7 +261,7 @@ export function extractContactDetails(data) {
     }
   }
 
-  // Fallbacks for direct properties
+  // Support direct Admin fields without adding static values.
   if (result.phones.length === 0 && data.phone) {
     result.phones.push(String(data.phone));
   }

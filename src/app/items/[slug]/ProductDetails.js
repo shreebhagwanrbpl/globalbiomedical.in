@@ -15,8 +15,6 @@ import {
     FaLink,
 } from "react-icons/fa";
 
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { fetchProductBySlug, fetchFullCatalog } from "@/lib/data-fetcher";
 import { makeSlug } from "@/lib/constants";
 
@@ -120,22 +118,25 @@ export default function ProductDetails({ slug }) {
         try {
             setSubmitting(true);
 
-            await addDoc(
-                collection(
-                    db,
-                    "websitesQueries",
-                    "globalbiomedicalin",
-                    "productQueries"
-                ),
-                {
+            const response = await fetch("/api/product-query", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
                     ...form,
-                    productName: product.title,
-                    productSlug: product.slug,
-                    brand: product.brand || "",
-                    model: product.model || "",
-                    createdAt: new Date(),
-                }
-            );
+                    productName: product?.title || "",
+                    productSlug: product?.slug || slug || "",
+                    brand: product?.brand || "",
+                    model: product?.model || "",
+                }),
+            });
+
+            const resJson = await response.json().catch(() => null);
+
+            if (!response.ok || resJson?.success === false) {
+                throw new Error(resJson?.error || "Failed to submit enquiry");
+            }
 
             toast.success(
                 "Your enquiry has been submitted successfully."
@@ -149,7 +150,7 @@ export default function ProductDetails({ slug }) {
         } catch (error) {
             console.error(error);
             toast.error(
-                "Something went wrong"
+                error?.message || "Something went wrong"
             );
         } finally {
             setSubmitting(false);

@@ -13,8 +13,6 @@ import SectionTitle from "@/components/SectionTitle";
 import ServiceCard from "@/components/ServiceCard";
 import CTASection from "@/components/CTASection";
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 export default function ServicesPage() {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,18 +27,16 @@ export default function ServicesPage() {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const snap = await getDoc(
-          doc(
-            db,
-            "websites",
-            "globalbiomedicalin",
-            "pages",
-            "services"
-          )
+        const response = await fetch(
+          "/api/site-data?type=services&websiteId=globalbiomedicalin&companyId=global",
+          { cache: "no-store" }
         );
+        const result = await response.json();
 
-        if (snap.exists()) {
-          setServices(snap.data().services || []);
+        if (response.ok && result?.data) {
+          setServices(Array.isArray(result.data.services) ? result.data.services : []);
+        } else {
+          setServices([]);
         }
       } catch (error) {
         console.error(error);

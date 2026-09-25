@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -16,6 +14,7 @@ import { CURRENT_WEBSITE_ID } from "@/lib/constants";
 
 export default function Footer() {
   const [contactData, setContactData] = useState(null);
+  const [servicesData, setServicesData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [districtData, setDistrictData] = useState(null);
 
@@ -53,7 +52,20 @@ export default function Footer() {
       }
     };
 
+    const loadServices = async () => {
+      try {
+        const data = await fetchDocCached(
+          `websites/${CURRENT_WEBSITE_ID}/pages/services`
+        );
+        setServicesData(Array.isArray(data?.services) ? data.services : []);
+      } catch (err) {
+        console.log(err);
+        setServicesData([]);
+      }
+    };
+
     loadContact();
+    loadServices();
   }, []);
 
   useEffect(() => {
@@ -61,18 +73,12 @@ export default function Footer() {
       if (!district) return;
 
       try {
-        const snap = await getDoc(
-          doc(
-            db,
-            "websites",
-            CURRENT_WEBSITE_ID,
-            "districts",
-            district
-          )
+        const data = await fetchDocCached(
+          `websites/${CURRENT_WEBSITE_ID}/districts/${district}`
         );
 
-        if (snap.exists()) {
-          setDistrictData(snap.data());
+        if (data) {
+          setDistrictData(data);
         }
       } catch (err) {
         console.log(err);
@@ -83,13 +89,12 @@ export default function Footer() {
   }, [district]);
 
   const contact = extractContactDetails(contactData);
-  const phone = contact.phone || "+91 9874563210";
-  const email = contact.email || "globalbiomedical@gmail.com";
-  const defaultAddress = "Unit S-1, 2nd Floor, Pn 16, D Block, Tagore Nagar, Vaishali Nagar, Jaipur - 302021, Rajasthan, India";
-  const address = contact.address || defaultAddress;
+  const phone = contact.phone || "";
+  const email = contact.email || "";
+  const address = contact.address || "";
 
   const dynamicAddress =
-    districtData
+    districtData?.district && districtData?.state
       ? `${districtData.district}, ${districtData.state}, India`
       : address;
 
@@ -190,10 +195,11 @@ export default function Footer() {
             </h3>
 
             <div className="flex flex-col gap-3 text-slate-600">
-              <p>Diagnostic Equipment</p>
-              <p>Laboratory Solutions</p>
-              <p>Biomedical Instruments</p>
-              <p>Maintenance Support</p>
+              {servicesData.map((service, index) => (
+                <p key={service?.id || service?.title || index}>
+                  {service?.title || service?.name || ""}
+                </p>
+              ))}
             </div>
           </div>
 
@@ -208,21 +214,23 @@ export default function Footer() {
                 <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0 mt-0.5">
                   <MapPin size={16} />
                 </div>
-                <p className="leading-6 pt-1.5">{dynamicAddress}</p>
+                {dynamicAddress ? (
+                  <p className="leading-6 pt-1.5">{dynamicAddress}</p>
+                ) : null}
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
                   <Phone size={16} />
                 </div>
-                <p>{phone}</p>
+                {phone ? <p>{phone}</p> : null}
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
                   <Mail size={16} />
                 </div>
-                <p>{email}</p>
+                {email ? <p>{email}</p> : null}
               </div>
 
             </div>

@@ -1,13 +1,6 @@
 "use client";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  doc,
-  getDoc,
-  addDoc,
-  collection,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import toast from "react-hot-toast";
 import {
   Mail,
@@ -83,18 +76,19 @@ export default function ContactPage() {
     try {
       setSubmitting(true);
 
-      await addDoc(
-        collection(
-          db,
-          "websitesQueries",
-          CURRENT_WEBSITE_ID,
-          "contactQueries"
-        ),
-        {
-          ...form,
-          createdAt: new Date(),
-        }
-      );
+      const response = await fetch("/api/contact-query", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
+
+      const resJson = await response.json().catch(() => null);
+
+      if (!response.ok || resJson?.success === false) {
+        throw new Error(resJson?.error || "Failed to submit message");
+      }
 
       toast.success(
         "Message submitted successfully"
@@ -110,7 +104,7 @@ export default function ContactPage() {
     } catch (err) {
       console.error(err);
       toast.error(
-        "Something went wrong"
+        err?.message || "Something went wrong"
       );
     } finally {
       setSubmitting(false);
@@ -130,18 +124,12 @@ export default function ContactPage() {
       if (!currentDistrict) return;
 
       try {
-        const snap = await getDoc(
-          doc(
-            db,
-            "websites",
-            CURRENT_WEBSITE_ID,
-            "districts",
-            currentDistrict
-          )
+        const data = await fetchDocCached(
+          `websites/${CURRENT_WEBSITE_ID}/districts/${currentDistrict}`
         );
 
-        if (snap.exists()) {
-          setDistrictData(snap.data());
+        if (data) {
+          setDistrictData(data);
         }
       } catch (err) {
         console.log(err);
@@ -169,14 +157,13 @@ export default function ContactPage() {
   }, []);
 
   const contact = extractContactDetails(contactData);
-  const phone = contact.phone || "+91 9874563210";
-  const email = contact.email || "globalbiomedical@gmail.com";
-  const defaultAddress = "Unit S-1, 2nd Floor, Pn 16, D Block, Tagore Nagar, Vaishali Nagar, Jaipur - 302021, Rajasthan, India";
-  const address = contact.address || defaultAddress;
-  const hours = contact.hours || "Mon - Sat: 9:00 AM - 7:00 PM";
+  const phone = contact.phone || "";
+  const email = contact.email || "";
+  const address = contact.address || "";
+  const hours = contact.hours || "";
 
   const dynamicAddress =
-    districtData
+    districtData?.district && districtData?.state
       ? `${districtData.district}, ${districtData.state}, India`
       : address;
 
@@ -259,9 +246,9 @@ export default function ContactPage() {
                     Phone Number
                   </h4>
 
-                  <p className="text-slate-600 mt-2">
-                    {phone}
-                  </p>
+                  {phone ? (
+                    <p className="text-slate-600 mt-2">{phone}</p>
+                  ) : null}
                 </div>
               </div>
 
@@ -275,9 +262,9 @@ export default function ContactPage() {
                     Email Address
                   </h4>
 
-                  <p className="text-slate-600 mt-2">
-                    {email}
-                  </p>
+                  {email ? (
+                    <p className="text-slate-600 mt-2">{email}</p>
+                  ) : null}
                 </div>
               </div>
 
@@ -291,9 +278,9 @@ export default function ContactPage() {
                     Office Address
                   </h4>
 
-                  <p className="text-slate-600 mt-2">
-                    {dynamicAddress}
-                  </p>
+                  {dynamicAddress ? (
+                    <p className="text-slate-600 mt-2">{dynamicAddress}</p>
+                  ) : null}
                 </div>
               </div>
 
@@ -307,9 +294,9 @@ export default function ContactPage() {
                     Working Hours
                   </h4>
 
-                  <p className="text-slate-600 mt-2">
-                    {hours}
-                  </p>
+                  {hours ? (
+                    <p className="text-slate-600 mt-2">{hours}</p>
+                  ) : null}
                 </div>
               </div>
 
