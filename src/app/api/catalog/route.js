@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const ADMIN_API_BASE =
-  process.env.ADMIN_API_BASE_URL || "https://admin.rajbiosis.app";
+  process.env.ADMIN_API_BASE_URL || process.env.ADMIN_API_URL || "https://admin.rajbiosis.app";
 
 export async function GET(request) {
   try {

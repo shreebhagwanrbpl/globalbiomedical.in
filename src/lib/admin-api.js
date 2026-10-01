@@ -6,7 +6,6 @@ function getServerAdminApiUrl() {
   return (
     process.env.ADMIN_API_BASE_URL ||
     process.env.ADMIN_API_URL ||
-    process.env.SQLITE_ADMIN_API_URL ||
     DEFAULT_ADMIN_API_URL
   ).replace(/\/$/, "");
 }

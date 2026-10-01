@@ -42,7 +42,7 @@ export function invalidateCatalogCache() {
 
 /**
  * Read website-managed documents through this website's API proxy.
- * The proxy talks to SuperAdmin/SQLite. No Firebase is used here.
+ * The proxy talks to the SuperAdmin API, which reads the shared MongoDB database. No direct database credentials are exposed to the website.
  */
 export async function fetchDocCached(path, force = false) {
   if (!force && docCache[path]) {
@@ -133,12 +133,12 @@ export async function fetchFullCatalog({
       catalogCacheTimestamp = Date.now();
 
       console.log(
-        `[data-fetcher] Admin SQLite catalog loaded: ${products.length} products for "${websiteId}"`
+        `[data-fetcher] Admin MongoDB catalog loaded: ${products.length} products for "${websiteId}"`
       );
 
       return products;
     } catch (error) {
-      console.error("[data-fetcher] Error fetching Admin SQLite catalog:", error);
+      console.error("[data-fetcher] Error fetching Admin MongoDB catalog:", error);
       return [];
     } finally {
       catalogInFlightPromise = null;
